@@ -6,10 +6,20 @@
 
 #include "sha3.h"
 
+#include <Utils/Macros.h>
+
 // big endian architectures need #define __BYTE_ORDER __BIG_ENDIAN
-#ifndef _MSC_VER
-#include <endian.h>
+//#ifndef _MSC_VER
+//#include <endian.h>
+//#endif
+
+#ifdef _MSC_VER
+#include "Utils/disable_warnings.hpp"
+MB_DISABLE_WARNING_MSVC( 4456 )
 #endif
+
+namespace protection {
+namespace sha3 {
 
 
 /// same as reset()
@@ -19,19 +29,14 @@ SHA3::SHA3(Bits bits)
 {
   reset();
 }
-
-
 /// restart
 void SHA3::reset()
 {
   for (size_t i = 0; i < StateSize; i++)
     m_hash[i] = 0;
-
   m_numBytes   = 0;
   m_bufferSize = 0;
 }
-
-
 /// constants and local helper functions
 namespace
 {
@@ -47,13 +52,13 @@ namespace
     0x000000000000800aULL, 0x800000008000000aULL, 0x8000000080008081ULL,
     0x8000000000008080ULL, 0x0000000080000001ULL, 0x8000000080008008ULL
   };
-
   /// rotate left and wrap around to the right
+
   inline uint64_t rotateLeft(uint64_t x, uint8_t numBits)
   {
     return (x << numBits) | (x >> (64 - numBits));
   }
-
+#if defined(__BYTE_ORDER) && (__BYTE_ORDER != 0) && (__BYTE_ORDER == __BIG_ENDIAN)
   /// convert litte vs big endian
   inline uint64_t swap(uint64_t x)
   {
@@ -63,7 +68,6 @@ namespace
 #ifdef _MSC_VER
     return _byteswap_uint64(x);
 #endif
-
     return  (x >> 56) |
            ((x >> 40) & 0x000000000000FF00ULL) |
            ((x >> 24) & 0x0000000000FF0000ULL) |
@@ -73,19 +77,15 @@ namespace
            ((x << 40) & 0x00FF000000000000ULL) |
             (x << 56);
   }
-
-
+#endif
   /// return x % 5 for 0 <= x <= 9
   unsigned int mod5(unsigned int x)
   {
     if (x < 5)
       return x;
-
     return x - 5;
   }
 }
-
-
 /// process a full block
 void SHA3::processBlock(const void* data)
 {
@@ -94,12 +94,13 @@ void SHA3::processBlock(const void* data)
 #else
 #define LITTLEENDIAN(x) (x)
 #endif
-
   const uint64_t* data64 = (const uint64_t*) data;
-  // mix data into state
-  for (unsigned int i = 0; i < m_blockSize / 8; i++)
-    m_hash[i] ^= LITTLEENDIAN(data64[i]);
 
+
+  // mix data into state
+  for (unsigned int i = 0; i < m_blockSize / 8; i++) {
+    m_hash[ i ] ^= LITTLEENDIAN( data64[ i ] );
+  }
   // re-compute state
   for (unsigned int round = 0; round < Rounds; round++)
   {
@@ -107,7 +108,6 @@ void SHA3::processBlock(const void* data)
     uint64_t coefficients[5];
     for (unsigned int i = 0; i < 5; i++)
       coefficients[i] = m_hash[i] ^ m_hash[i + 5] ^ m_hash[i + 10] ^ m_hash[i + 15] ^ m_hash[i + 20];
-
     for (unsigned int i = 0; i < 5; i++)
     {
       uint64_t one = coefficients[mod5(i + 4)] ^ rotateLeft(coefficients[mod5(i + 1)], 1);
@@ -117,10 +117,8 @@ void SHA3::processBlock(const void* data)
       m_hash[i + 15] ^= one;
       m_hash[i + 20] ^= one;
     }
-
     // temporary
     uint64_t one;
-
     // Rho Pi
     uint64_t last = m_hash[1];
     one = m_hash[10]; m_hash[10] = rotateLeft(last,  1); last = one;
@@ -147,32 +145,31 @@ void SHA3::processBlock(const void* data)
     one = m_hash[ 9]; m_hash[ 9] = rotateLeft(last, 61); last = one;
     one = m_hash[ 6]; m_hash[ 6] = rotateLeft(last, 20); last = one;
                       m_hash[ 1] = rotateLeft(last, 44);
-
     // Chi
     for (unsigned int j = 0; j < 25; j += 5)
     {
       // temporaries
       uint64_t one = m_hash[j];
       uint64_t two = m_hash[j + 1];
-
       m_hash[j]     ^= m_hash[j + 2] & ~two;
       m_hash[j + 1] ^= m_hash[j + 3] & ~m_hash[j + 2];
       m_hash[j + 2] ^= m_hash[j + 4] & ~m_hash[j + 3];
       m_hash[j + 3] ^=      one      & ~m_hash[j + 4];
       m_hash[j + 4] ^=      two      & ~one;
     }
-
     // Iota
     m_hash[0] ^= XorMasks[round];
   }
 }
 
+inline bool is_correctly_aligned( void const* buf ) {
+    return reinterpret_cast< std::intptr_t >( buf ) % alignof( uint64_t ) == 0;
+}
 
 /// add arbitrary number of bytes
-void SHA3::add(const void* data, size_t numBytes)
+void SHA3::add( const void* data, size_t numBytes)
 {
   const uint8_t* current = (const uint8_t*) data;
-
   // copy data to buffer
   if (m_bufferSize > 0)
   {
@@ -182,7 +179,6 @@ void SHA3::add(const void* data, size_t numBytes)
       numBytes--;
     }
   }
-
   // full buffer
   if (m_bufferSize == m_blockSize)
   {
@@ -190,20 +186,20 @@ void SHA3::add(const void* data, size_t numBytes)
     m_numBytes  += m_blockSize;
     m_bufferSize = 0;
   }
-
   // no more data ?
   if (numBytes == 0)
     return;
-
   // process full blocks
+  alignas( alignof( uint64_t ) ) uint8_t aligned_buffer[ 144 ]; // 144 is maximum buffer size (for SHA3-224)
   while (numBytes >= m_blockSize)
   {
-    processBlock(current);
+      memcpy( aligned_buffer, current, m_blockSize );
+      processBlock( aligned_buffer );
+
     current    += m_blockSize;
     m_numBytes += m_blockSize;
     numBytes   -= m_blockSize;
   }
-
   // keep remaining bytes in buffer
   while (numBytes > 0)
   {
@@ -211,8 +207,6 @@ void SHA3::add(const void* data, size_t numBytes)
     numBytes--;
   }
 }
-
-
 /// process everything left in the internal buffer
 void SHA3::processBuffer()
 {
@@ -223,26 +217,19 @@ void SHA3::processBuffer()
   // fill with zeros
   while (offset < m_blockSize)
     m_buffer[offset++] = 0;
-
   // and add a single set bit
   m_buffer[offset - 1] |= 0x80;
-
   processBlock(m_buffer);
 }
-
-
 /// return latest hash as 16 hex characters
 std::string SHA3::getHash()
 {
   // process remaining bytes
   processBuffer();
-
   // convert hash to string
   static const char dec2hex[16 + 1] = "0123456789abcdef";
-
   // number of significant elements in hash (uint64_t)
   unsigned int hashLength = m_bits / 64;
-
   std::string result;
   result.reserve(m_bits / 4);
   for (unsigned int i = 0; i < hashLength; i++)
@@ -253,7 +240,6 @@ std::string SHA3::getHash()
       result += dec2hex[oneByte >> 4];
       result += dec2hex[oneByte & 15];
     }
-
   // SHA3-224's last entry in m_hash provides only 32 bits instead of 64 bits
   unsigned int remainder = m_bits - hashLength * 64;
   unsigned int processed = 0;
@@ -263,14 +249,26 @@ std::string SHA3::getHash()
     unsigned char oneByte = (unsigned char) (m_hash[hashLength] >> processed);
     result += dec2hex[oneByte >> 4];
     result += dec2hex[oneByte & 15];
-
     processed += 8;
   }
-
   return result;
 }
 
+mb::ConstByteBufferView SHA3::getRawHash() {
+    // process remaining bytes
+    processBuffer();
+    // number of significant elements in hash (uint8_t)
+    unsigned int hash_length = m_bits / 8;
+    auto hash_view = reinterpret_cast< std::uint8_t const * >( m_hash );
+    return { hash_view, hash_view + hash_length };
+}
 
+void SHA3::copyRawHash( mb::ByteBufferView destination )
+{
+    auto rawHash = getRawHash();
+    MB_ASSERT( destination.size() == rawHash.size() );
+    std::copy( rawHash.begin(), rawHash.end(), destination.begin() );
+}
 /// compute SHA3 of a memory block
 std::string SHA3::operator()(const void* data, size_t numBytes)
 {
@@ -278,8 +276,6 @@ std::string SHA3::operator()(const void* data, size_t numBytes)
   add(data, numBytes);
   return getHash();
 }
-
-
 /// compute SHA3 of a string, excluding final zero
 std::string SHA3::operator()(const std::string& text)
 {
@@ -287,3 +283,7 @@ std::string SHA3::operator()(const std::string& text)
   add(text.c_str(), text.size());
   return getHash();
 }
+
+
+} // namespace sha3
+} // namespace protection
