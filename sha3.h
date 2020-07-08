@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <Utils/Buffer.hpp>
+#include <CoreUtils/Buffer.hpp>
 
 #include <string>
 #include <vector>
@@ -20,8 +20,8 @@ typedef unsigned __int64 uint64_t;
 #include <cstdint>
 #endif
 
-namespace protection {
-namespace sha3 {
+namespace  MB::Protection::Hash
+{
 
 /// compute SHA3 hash
 /** Usage:
@@ -50,9 +50,9 @@ public:
   /// return latest hash as hex characters
   std::string getHash();
   /// return latest hash as raw bytes
-  mb::ConstByteBufferView getRawHash();
+  MB::ConstByteBufferView getRawHash();
   /// copy latest hash to given buffer
-  void copyRawHash( mb::ByteBufferView destination );
+  void copyRawHash( MB::ByteBufferView destination );
   /// restart
   void reset();
 private:
@@ -77,5 +77,8 @@ private:
   Bits     m_bits;
 };
 
-} // namespace sha3
-} // namespace protection
+} // namespace MB::Protection::Hash
+
+namespace protection::sha3 {
+    using SHA3 [[ deprecated( "Please use MB::Protection::Hash" ) ]] = MB::Protection::Hash::SHA3;
+}

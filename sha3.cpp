@@ -6,7 +6,7 @@
 
 #include "sha3.h"
 
-#include <Utils/Macros.h>
+#include <LogAndTimer/Utils/Macros.hpp>
 
 // big endian architectures need #define __BYTE_ORDER __BIG_ENDIAN
 //#ifndef _MSC_VER
@@ -18,9 +18,8 @@
 MB_DISABLE_WARNING_MSVC( 4456 )
 #endif
 
-namespace protection {
-namespace sha3 {
-
+namespace  MB::Protection::Hash
+{
 
 /// same as reset()
 SHA3::SHA3(Bits bits)
@@ -254,7 +253,7 @@ std::string SHA3::getHash()
   return result;
 }
 
-mb::ConstByteBufferView SHA3::getRawHash() {
+MB::ConstByteBufferView SHA3::getRawHash() {
     // process remaining bytes
     processBuffer();
     // number of significant elements in hash (uint8_t)
@@ -263,7 +262,7 @@ mb::ConstByteBufferView SHA3::getRawHash() {
     return { hash_view, hash_view + hash_length };
 }
 
-void SHA3::copyRawHash( mb::ByteBufferView destination )
+void SHA3::copyRawHash( MB::ByteBufferView destination )
 {
     auto rawHash = getRawHash();
     MB_ASSERT( destination.size() == rawHash.size() );
@@ -285,5 +284,4 @@ std::string SHA3::operator()(const std::string& text)
 }
 
 
-} // namespace sha3
-} // namespace protection
+} // namespace  MB::Protection::Hash
