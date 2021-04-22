@@ -54,6 +54,9 @@ namespace
   /// rotate left and wrap around to the right
 
   inline uint64_t rotateLeft(uint64_t x, uint8_t numBits)
+#ifdef __clang__
+  __attribute__(( no_sanitize( "integer" ) ))
+#endif
   {
     return (x << numBits) | (x >> (64 - numBits));
   }
