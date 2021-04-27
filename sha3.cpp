@@ -261,7 +261,7 @@ MB::ConstByteBufferView SHA3::getRawHash() {
     processBuffer();
     // number of significant elements in hash (uint8_t)
     unsigned int hash_length = m_bits / 8;
-    auto hash_view = reinterpret_cast< std::uint8_t const * >( m_hash );
+    auto hash_view = reinterpret_cast< std::byte const * >( m_hash );
     return { hash_view, hash_view + hash_length };
 }
 
