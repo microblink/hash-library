@@ -165,7 +165,7 @@ void SHA3::processBlock(const void* data)
 }
 
 inline bool is_correctly_aligned( void const* buf ) {
-    return reinterpret_cast< std::intptr_t >( buf ) % alignof( uint64_t ) == 0;
+    return reinterpret_cast< std::uintptr_t >( buf ) % alignof( uint64_t ) == 0;
 }
 
 /// add arbitrary number of bytes
