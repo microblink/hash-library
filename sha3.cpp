@@ -153,13 +153,13 @@ void SHA3::processBlock(const void* data)
     for (unsigned int j = 0; j < 25; j += 5)
     {
       // temporaries
-      uint64_t one = m_hash[j];
-      uint64_t two = m_hash[j + 1];
+      uint64_t localOne = m_hash[j];
+      uint64_t two      = m_hash[j + 1];
       m_hash[j]     ^= m_hash[j + 2] & ~two;
       m_hash[j + 1] ^= m_hash[j + 3] & ~m_hash[j + 2];
       m_hash[j + 2] ^= m_hash[j + 4] & ~m_hash[j + 3];
-      m_hash[j + 3] ^=      one      & ~m_hash[j + 4];
-      m_hash[j + 4] ^=      two      & ~one;
+      m_hash[j + 3] ^=      localOne & ~m_hash[j + 4];
+      m_hash[j + 4] ^=      two      & ~localOne;
     }
     // Iota
     m_hash[0] ^= XorMasks[round];
