@@ -18,6 +18,8 @@
 MB_DISABLE_WARNING_MSVC( 4456 )
 #endif
 
+#include <cstring> // for memcpy
+
 namespace  MB::Protection::Hash
 {
 
